@@ -1,5 +1,5 @@
 /* Chicken Hop: single-file canvas game.
-   Goals: kid-friendly; keyboard-only; no deps; runs from file or simple server.
+   Goals: kid-friendly; keyboard + touch; no deps; runs from file or simple server.
 */
 
 (() => {
@@ -23,7 +23,15 @@
     hpFill2: document.getElementById('hpFill2'),
     overlay: document.getElementById('overlay'),
     cta: document.getElementById('cta'),
+    touchControls: document.getElementById('touchControls'),
+    touchLeft: document.getElementById('touchLeft'),
+    touchRight: document.getElementById('touchRight'),
+    touchJump: document.getElementById('touchJump'),
+    touchDown: document.getElementById('touchDown'),
+    touchPause: document.getElementById('touchPause'),
+    touchRestart: document.getElementById('touchRestart'),
   };
+  const touchButtons = Array.from(document.querySelectorAll('[data-touch]'));
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -32,6 +40,17 @@
 
   function nowMs() {
     return performance.now();
+  }
+
+  function detectTouchMode() {
+    const coarse = !!(window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
+    return coarse || ((navigator.maxTouchPoints || 0) > 0);
+  }
+
+  const touchMode = detectTouchMode();
+  if (touchMode) {
+    document.body.classList.add('touch-mode');
+    if (ui.touchControls) ui.touchControls.setAttribute('aria-hidden', 'false');
   }
 
   function roundedRect(c, x, y, w, h, r) {
@@ -147,7 +166,112 @@
 
   // --- Input ---
   const keys = new Set();
+  const touchState = { left: false, right: false, jump: false, down: false };
+  const touchCounts = { left: 0, right: 0, jump: 0, down: 0 };
+  const touchPointers = new Map();
   let lastInputAt = 0;
+
+  function syncTouchVisuals() {
+    for (const btn of touchButtons) {
+      const action = btn.getAttribute('data-touch');
+      if (!action || !(action in touchState)) continue;
+      btn.classList.toggle('active', touchState[action]);
+    }
+  }
+
+  function clearTouchInput() {
+    for (const k of Object.keys(touchState)) {
+      touchState[k] = false;
+      touchCounts[k] = 0;
+    }
+    touchPointers.clear();
+    syncTouchVisuals();
+  }
+
+  function clearInputState() {
+    keys.clear();
+    clearTouchInput();
+  }
+
+  function setTouchAction(action, pointerId, active) {
+    if (!(action in touchState)) return;
+    const prev = touchPointers.get(pointerId);
+    if (prev && prev !== action && (prev in touchCounts)) {
+      touchCounts[prev] = Math.max(0, touchCounts[prev] - 1);
+      touchState[prev] = touchCounts[prev] > 0;
+    }
+    if (!active) {
+      if (prev && prev in touchCounts) {
+        touchCounts[prev] = Math.max(0, touchCounts[prev] - 1);
+        touchState[prev] = touchCounts[prev] > 0;
+      }
+      touchPointers.delete(pointerId);
+      syncTouchVisuals();
+      return;
+    }
+
+    if (prev === action) return;
+    touchPointers.set(pointerId, action);
+    touchCounts[action] += 1;
+    touchState[action] = true;
+    syncTouchVisuals();
+  }
+
+  function releaseTouchPointer(pointerId) {
+    const prev = touchPointers.get(pointerId);
+    if (!prev || !(prev in touchCounts)) return;
+    touchCounts[prev] = Math.max(0, touchCounts[prev] - 1);
+    touchState[prev] = touchCounts[prev] > 0;
+    touchPointers.delete(pointerId);
+    syncTouchVisuals();
+  }
+
+  function togglePause() {
+    if (state.mode === 'playing') {
+      state.mode = 'paused';
+      clearInputState();
+      showOverlay('Paused', touchMode ? 'Tap to continue' : 'Press P to continue');
+    } else if (state.mode === 'paused') {
+      state.mode = 'playing';
+      clearInputState();
+      hideOverlay();
+    }
+  }
+
+  function pressRestart() {
+    clearInputState();
+    if (state.mode !== 'playing') startGame();
+    else resetRun();
+  }
+
+  function setupTouchButtons() {
+    if (!touchMode) return;
+
+    const press = (e) => {
+      const btn = e.currentTarget;
+      const action = btn && btn.getAttribute && btn.getAttribute('data-touch');
+      if (!action) return;
+      e.preventDefault();
+      lastInputAt = nowMs();
+      setTouchAction(action, e.pointerId, true);
+      if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
+      if (state.mode !== 'title') Sfx.ensure();
+    };
+
+    const release = (e) => {
+      releaseTouchPointer(e.pointerId);
+    };
+
+    for (const btn of touchButtons) {
+      btn.addEventListener('pointerdown', press, { passive: false });
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('lostpointercapture', release);
+    }
+
+    window.addEventListener('pointerup', (e) => releaseTouchPointer(e.pointerId));
+    window.addEventListener('pointercancel', (e) => releaseTouchPointer(e.pointerId));
+  }
 
   function keyDown(e) {
     const k = e.key;
@@ -174,20 +298,11 @@
     }
 
     if (k === 'p' || k === 'P') {
-      if (state.mode === 'playing') {
-        state.mode = 'paused';
-        keys.clear();
-        showOverlay('Paused', 'Press P to continue');
-      } else if (state.mode === 'paused') {
-        state.mode = 'playing';
-        keys.clear();
-        hideOverlay();
-      }
+      togglePause();
     }
 
     if (k === 'r' || k === 'R') {
-      if (state.mode !== 'playing') startGame();
-      else resetRun();
+      pressRestart();
     }
 
     // Unlock audio once.
@@ -200,6 +315,33 @@
 
   window.addEventListener('keydown', keyDown);
   window.addEventListener('keyup', keyUp);
+  window.addEventListener('blur', clearInputState);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearInputState();
+  });
+  setupTouchButtons();
+
+  if (ui.touchPause) {
+    ui.touchPause.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      togglePause();
+    }, { passive: false });
+  }
+
+  if (ui.touchRestart) {
+    ui.touchRestart.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      pressRestart();
+    }, { passive: false });
+  }
+
+  if (ui.cta) {
+    ui.cta.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state.mode === 'title' || state.mode === 'gameover') startGame();
+      else if (state.mode === 'paused') togglePause();
+    });
+  }
 
   // --- Game state ---
   const storageKey = 'chicken_hop_best_v1';
@@ -230,6 +372,14 @@
     shake: 0,
     hintBlink: 0,
   };
+
+  function startCtaText() {
+    return touchMode ? 'Tap to start' : 'Press <b>Enter</b> to start';
+  }
+
+  function retryCtaText() {
+    return touchMode ? 'Tap to try again' : 'Press Enter to try again';
+  }
 
   function setTimeMode(mode) {
     const m = String(mode || '').toLowerCase();
@@ -497,7 +647,7 @@
     state.mode = 'gameover';
     state.best = Math.max(state.best, Math.floor(state.score));
     try { localStorage.setItem(storageKey, String(state.best)); } catch {}
-    showOverlay(`Bonk, ${state.name}!`, 'Press Enter to try again');
+    showOverlay(`Bonk, ${state.name}!`, retryCtaText());
     Sfx.bonk();
   }
 
@@ -691,10 +841,10 @@
     }
 
     // Input -> movement.
-    const left = keys.has('ArrowLeft') || keys.has('a') || keys.has('A');
-    const right = keys.has('ArrowRight') || keys.has('d') || keys.has('D');
-    const jump = keys.has(' ') || keys.has('ArrowUp') || keys.has('w') || keys.has('W');
-    const down = keys.has('ArrowDown') || keys.has('s') || keys.has('S');
+    const left = touchState.left || keys.has('ArrowLeft') || keys.has('a') || keys.has('A');
+    const right = touchState.right || keys.has('ArrowRight') || keys.has('d') || keys.has('D');
+    const jump = touchState.jump || keys.has(' ') || keys.has('ArrowUp') || keys.has('w') || keys.has('W');
+    const down = touchState.down || keys.has('ArrowDown') || keys.has('s') || keys.has('S');
 
     const accel = 2400;
     const maxVx = 360;
@@ -1154,7 +1304,7 @@
       setHeartFill(1, 1);
 
       const blink = (Math.sin(state.hintBlink * 3.0) * 0.5 + 0.5);
-      ui.cta.innerHTML = `Press <b>Enter</b> to start`;
+      ui.cta.innerHTML = startCtaText();
       ui.cta.style.opacity = String(lerp(0.70, 1.0, blink));
       ui.overlay.classList.remove('hidden');
 
@@ -1906,7 +2056,7 @@
   player.y = 340;
 
   // Keep title overlay.
-  showOverlay('Chicken Hop', 'Press <b>Enter</b> to start');
+  showOverlay('Chicken Hop', startCtaText());
   ui.best.textContent = String(Math.floor(state.best));
   setTimeMode(state.timeMode);
 

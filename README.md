@@ -1,11 +1,11 @@
 # Chicken Hop: House Run
 
-Tiny browser game. Keyboard only. No build step.
+Tiny browser game. Keyboard + touch. No build step.
 
 ## Play
 
 1. Open `index.html` in a browser.
-2. Press `Enter`.
+2. Press `Enter` (or tap `Tap to start` on touch devices).
 
 If your browser blocks audio when opened from a file, run a local server:
 
@@ -16,6 +16,15 @@ python3 -m http.server 5173
 
 Then open `http://localhost:5173`.
 
+## Deployment
+
+- Production URL: `https://viggo.games`
+- Hosting: GitHub Pages
+- Deployment: GitHub Actions workflow at `.github/workflows/pages.yml`
+- Trigger: every push to `main` (or manual `workflow_dispatch`)
+- Flow: checkout -> configure Pages -> upload repo as artifact -> deploy with `actions/deploy-pages`
+- Custom domain: GitHub Pages is configured to serve this project on `viggo.games`
+
 ## Controls
 
 - Move: `Left/Right` or `A/D`
@@ -25,6 +34,14 @@ Then open `http://localhost:5173`.
 - Drop from shelves: `Down` or `S`
 - Pause: `P`
 - Restart: `R`
+
+Touch controls (auto-shown on phone/tablet):
+- `◀` / `▶`: move
+- `▲`: jump, hold to fly
+- `▼`: drop from shelf/step
+- `Pause`: pause/resume
+- `Restart`: restart run
+- Overlay CTA button: tap to start/continue/retry
 
 ## Game Rules
 
@@ -93,9 +110,10 @@ Main loop:
 
 Input:
 - `keydown/keyup` maintain `keys` set.
-- `P` toggles pause (`state.mode = 'paused'`), clears keys to avoid stuck movement.
+- Touch buttons maintain a parallel `touchState` (`left/right/jump/down`) with multi-touch pointer tracking.
+- `P` or touch `Pause` toggles pause, clears keyboard + touch input to avoid stuck movement.
 - `R` resets run.
-- `Enter` starts from title/gameover.
+- `Enter` or overlay CTA starts from title/gameover.
 
 State (high level):
 - `state.mode`: `title` | `playing` | `paused` | `gameover`

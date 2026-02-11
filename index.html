@@ -10,7 +10,7 @@
     <main class="wrap">
       <header class="topbar" aria-hidden="true">
         <div class="brand">Chicken Hop</div>
-        <div class="hint">Arrows / WASD + Space • 1/2/3 speed • Enter start • P pause • R restart</div>
+        <div class="hint">Arrows / WASD + Space • Touch controls on phone/tablet • 1/2/3 speed • Enter start • P pause • R restart</div>
       </header>
 
       <section class="stage" aria-label="Game">
@@ -97,14 +97,29 @@
 		              <div class="k">Drop: <b>↓</b> or <b>S</b> (from shelves)</div>
 		              <div class="k">Pause: <b>P</b> • Restart: <b>R</b></div>
 		            </div>
-            <div class="cta" id="cta">Press <b>Enter</b> to start</div>
+            <button class="cta" id="cta" type="button">Press <b>Enter</b> to start</button>
             <div class="tiny">Tip: staying near the middle makes it easier.</div>
+          </div>
+        </div>
+
+        <div class="touchControls" id="touchControls" aria-label="Touch controls" aria-hidden="true">
+          <div class="touchPad touchMove">
+            <button id="touchLeft" class="touchBtn" type="button" data-touch="left" aria-label="Move left">◀</button>
+            <button id="touchRight" class="touchBtn" type="button" data-touch="right" aria-label="Move right">▶</button>
+          </div>
+          <div class="touchPad touchAir">
+            <button id="touchJump" class="touchBtn touchBtnJump" type="button" data-touch="jump" aria-label="Jump and fly">▲</button>
+            <button id="touchDown" class="touchBtn" type="button" data-touch="down" aria-label="Drop down">▼</button>
+          </div>
+          <div class="touchPad touchMeta">
+            <button id="touchPause" class="touchBtn touchBtnMeta" type="button" aria-label="Pause or resume">Pause</button>
+            <button id="touchRestart" class="touchBtn touchBtnMeta" type="button" aria-label="Restart run">Restart</button>
           </div>
         </div>
       </section>
 
       <footer class="bottombar" aria-hidden="true">
-        <div class="tiny">Made for keyboard play. No ads. No timers. Just chicken.</div>
+        <div class="tiny">Made for keyboard and touch play. No ads. No timers. Just chicken.</div>
       </footer>
     </main>
 
