@@ -18,7 +18,8 @@ Then open `http://localhost:5173`.
 
 ## Deployment
 
-- Production URL: `https://viggo.games`
+- Production URL (custom domain): `https://viggo.games`
+- GitHub Pages URL: `https://chrhansen.github.io/chicken-hop/` (redirects to `https://viggo.games/`)
 - Hosting: GitHub Pages
 - Deployment: GitHub Actions workflow at `.github/workflows/pages.yml`
 - Trigger: every push to `main` (or manual `workflow_dispatch`)
@@ -139,7 +140,7 @@ Entities:
 - `particles[]`: feathers/dust/yolk
 
 Spawning:
-- Obstacles spawn in \"chunks\" (1-2) with a forced landing gap between chunks.
+- Obstacles spawn in "chunks" (1-2) with a forced landing gap between chunks.
 - Shelves/stairs spawn in readable segments between obstacle runs.
 - Eggs spawn mostly during breaks.
 - Giant corn spawns rarely (and higher than regular corn).
